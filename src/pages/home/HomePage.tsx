@@ -163,7 +163,7 @@ class Trader:
           {/* prettier-ignore */}
           <Text>
             IMC Prosperity 4 Visualizer is a visualizer for <Anchor href="https://prosperity.imc.com/" target="_blank" rel="noreferrer">IMC Prosperity 4</Anchor> algorithms.
-            Its source code is available in the <Anchor href="https://github.com/luffy-taro-106/imc-prosperity-4-visualizer" target="_blank" rel="noreferrer">luffy-taro-106/imc-prosperity-4-visualizer</Anchor> GitHub repository.
+            Its source code is available in the <Anchor href="https://github.com/sanjikun106/imc-prosperity-4-visualizer" target="_blank" rel="noreferrer">sanjikun106/imc-prosperity-4-visualizer</Anchor> GitHub repository.
             Load an exported Prosperity 4 <Code>.log</Code> file below to get started.
           </Text>
         </HomeCard>
