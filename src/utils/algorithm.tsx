@@ -325,7 +325,8 @@ function getAlgorithmDataFromProsperity4Logs(logEntries: Prosperity4LogEntry[]):
 }
 
 function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary?: AlgorithmSummary): Algorithm {
-  const activityLogs = typeof logFile.activitiesLog === 'string' ? parseActivityLogLines(logFile.activitiesLog.trim().split(/\r?\n/)) : [];
+  const activityLogs =
+    typeof logFile.activitiesLog === 'string' ? parseActivityLogLines(logFile.activitiesLog.trim().split(/\r?\n/)) : [];
 
   if (!Array.isArray(logFile.logs)) {
     throw new AlgorithmParseError(

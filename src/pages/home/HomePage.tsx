@@ -170,8 +170,8 @@ class Trader:
 
         <HomeCard title="Supported Formats">
           <Text>
-            The visualizer supports the official Prosperity 4 exported <Code>.log</Code> files directly. If you also
-            run custom local backtests, the legacy logger-based text format is still supported.
+            The visualizer supports the official Prosperity 4 exported <Code>.log</Code> files directly. If you also run
+            custom local backtests, the legacy logger-based text format is still supported.
           </Text>
           <Text>
             Use the logger below only if your local simulator does not already emit the official Prosperity 4 export
