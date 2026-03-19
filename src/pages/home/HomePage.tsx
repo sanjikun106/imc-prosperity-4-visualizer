@@ -3,8 +3,6 @@ import { ReactNode } from 'react';
 import { ScrollableCodeHighlight } from '../../components/ScrollableCodeHighlight.tsx';
 import { HomeCard } from './HomeCard.tsx';
 import { LoadFromFile } from './LoadFromFile.tsx';
-import { LoadFromProsperity } from './LoadFromProsperity.tsx';
-import { LoadFromUrl } from './LoadFromUrl.tsx';
 
 export function HomePage(): ReactNode {
   const exampleCode = `
@@ -164,25 +162,25 @@ class Trader:
         <HomeCard title="Welcome!">
           {/* prettier-ignore */}
           <Text>
-            IMC Prosperity 3 Visualizer is a visualizer for <Anchor href="https://prosperity.imc.com/" target="_blank" rel="noreferrer">IMC Prosperity 3</Anchor> algorithms.
-            Its source code is available in the <Anchor href="https://github.com/jmerle/imc-prosperity-3-visualizer" target="_blank" rel="noreferrer">jmerle/imc-prosperity-3-visualizer</Anchor> GitHub repository.
-            Load an algorithm below to get started.
+            IMC Prosperity 4 Visualizer is a visualizer for <Anchor href="https://prosperity.imc.com/" target="_blank" rel="noreferrer">IMC Prosperity 4</Anchor> algorithms.
+            Its source code is available in the <Anchor href="https://github.com/luffy-taro-106/imc-prosperity-4-visualizer" target="_blank" rel="noreferrer">luffy-taro-106/imc-prosperity-4-visualizer</Anchor> GitHub repository.
+            Load an exported Prosperity 4 <Code>.log</Code> file below to get started.
           </Text>
         </HomeCard>
 
-        <HomeCard title="Prerequisites">
+        <HomeCard title="Supported Formats">
           <Text>
-            IMC Prosperity 3 Visualizer assumes your algorithm logs in a certain format. Algorithms that use a different
-            logging format may cause unexpected errors when opening them in the visualizer. Please use the following
-            boilerplate for your algorithm (or adapt your algorithm to use the logger from this code) and use{' '}
-            <Code>logger.print()</Code> where you would normally use <Code>print()</Code>:
+            The visualizer supports the official Prosperity 4 exported <Code>.log</Code> files directly. If you also
+            run custom local backtests, the legacy logger-based text format is still supported.
+          </Text>
+          <Text>
+            Use the logger below only if your local simulator does not already emit the official Prosperity 4 export
+            format and you still want to produce a compatible legacy log file:
           </Text>
           <ScrollableCodeHighlight code={exampleCode} language="python" />
         </HomeCard>
 
         <LoadFromFile />
-        <LoadFromProsperity />
-        <LoadFromUrl />
       </Stack>
     </Container>
   );

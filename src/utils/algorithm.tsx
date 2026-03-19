@@ -30,6 +30,19 @@ export class AlgorithmParseError extends Error {
   }
 }
 
+interface Prosperity4LogEntry {
+  sandboxLog?: string;
+  lambdaLog?: string;
+  timestamp?: number;
+}
+
+interface Prosperity4LogFile {
+  activitiesLog?: string;
+  logs?: Prosperity4LogEntry[];
+  graphLog?: string;
+  positions?: unknown;
+}
+
 function getColumnValues(columns: string[], indices: number[]): number[] {
   const values: number[] = [];
 
@@ -43,21 +56,40 @@ function getColumnValues(columns: string[], indices: number[]): number[] {
   return values;
 }
 
-function getActivityLogs(logLines: string[]): ActivityLogRow[] {
-  const headerIndex = logLines.indexOf('Activities log:');
-  if (headerIndex === -1) {
-    return [];
-  }
-
+function parseActivityLogLines(lines: string[]): ActivityLogRow[] {
   const rows: ActivityLogRow[] = [];
+  let started = false;
 
-  for (let i = headerIndex + 2; i < logLines.length; i++) {
-    const line = logLines[i];
+  for (const line of lines) {
     if (line === '') {
-      break;
+      if (started) {
+        break;
+      }
+
+      continue;
+    }
+
+    if (line === 'Activities log:') {
+      continue;
+    }
+
+    if (line.startsWith('day;timestamp;product;')) {
+      started = true;
+      continue;
+    }
+
+    if (!started) {
+      if (!/^[-\d]+;/.test(line)) {
+        continue;
+      }
+
+      started = true;
     }
 
     const columns = line.split(';');
+    if (columns.length < 17) {
+      continue;
+    }
 
     rows.push({
       day: Number(columns[0]),
@@ -73,6 +105,15 @@ function getActivityLogs(logLines: string[]): ActivityLogRow[] {
   }
 
   return rows;
+}
+
+function getActivityLogs(logLines: string[]): ActivityLogRow[] {
+  const headerIndex = logLines.indexOf('Activities log:');
+  if (headerIndex === -1) {
+    return [];
+  }
+
+  return parseActivityLogLines(logLines.slice(headerIndex + 1));
 }
 
 function decompressListings(compressed: CompressedListing[]): Record<ProsperitySymbol, Listing> {
@@ -191,6 +232,24 @@ function decompressDataRow(compressed: CompressedAlgorithmDataRow, sandboxLogs: 
   };
 }
 
+function parseCompressedDataRow(compressed: string, sandboxLogs: string): AlgorithmDataRow {
+  try {
+    return decompressDataRow(JSON.parse(compressed), sandboxLogs.trim());
+  } catch (err) {
+    console.log(compressed);
+    console.error(err);
+
+    throw new AlgorithmParseError(
+      (
+        <>
+          <Text>Logs are in invalid format. Could not parse the following row:</Text>
+          <Text>{compressed}</Text>
+        </>
+      ),
+    );
+  }
+}
+
 function getAlgorithmData(logLines: string[]): AlgorithmDataRow[] {
   const headerIndex = logLines.indexOf('Sandbox logs:');
   if (headerIndex === -1) {
@@ -230,12 +289,9 @@ function getAlgorithmData(logLines: string[]): AlgorithmDataRow[] {
     const end = line.lastIndexOf(']') + 1;
 
     try {
-      const compressedDataRow = JSON.parse(JSON.parse('"' + line.substring(start, end) + '"'));
-      rows.push(decompressDataRow(compressedDataRow, nextSandboxLogs));
-    } catch (err) {
-      console.log(line);
-      console.error(err);
-
+      const compressed = JSON.parse('"' + line.substring(start, end) + '"');
+      rows.push(parseCompressedDataRow(compressed, nextSandboxLogs));
+    } catch {
       throw new AlgorithmParseError(
         (
           <>
@@ -250,7 +306,64 @@ function getAlgorithmData(logLines: string[]): AlgorithmDataRow[] {
   return rows;
 }
 
+function isProsperity4LogFile(value: unknown): value is Prosperity4LogFile {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getAlgorithmDataFromProsperity4Logs(logEntries: Prosperity4LogEntry[]): AlgorithmDataRow[] {
+  const rows: AlgorithmDataRow[] = [];
+
+  for (const entry of logEntries) {
+    if (typeof entry.lambdaLog !== 'string' || entry.lambdaLog.trim() === '') {
+      continue;
+    }
+
+    rows.push(parseCompressedDataRow(entry.lambdaLog, entry.sandboxLog || ''));
+  }
+
+  return rows;
+}
+
+function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary?: AlgorithmSummary): Algorithm {
+  const activityLogs = typeof logFile.activitiesLog === 'string' ? parseActivityLogLines(logFile.activitiesLog.trim().split(/\r?\n/)) : [];
+
+  if (!Array.isArray(logFile.logs)) {
+    throw new AlgorithmParseError(
+      (
+        <Text>
+          This file only contains summary data. Please upload the Prosperity 4 exported <code>.log</code> file that
+          includes per-timestamp logs.
+        </Text>
+      ),
+    );
+  }
+
+  const data = getAlgorithmDataFromProsperity4Logs(logFile.logs);
+
+  if (activityLogs.length === 0 || data.length === 0) {
+    throw new AlgorithmParseError(
+      /* prettier-ignore */
+      <Text>Logs are in invalid format.</Text>,
+    );
+  }
+
+  return {
+    summary,
+    activityLogs,
+    data,
+  };
+}
+
 export function parseAlgorithmLogs(logs: string, summary?: AlgorithmSummary): Algorithm {
+  try {
+    const parsedLogs = JSON.parse(logs);
+    if (isProsperity4LogFile(parsedLogs) && typeof parsedLogs.activitiesLog === 'string') {
+      return getAlgorithmFromProsperity4LogFile(parsedLogs, summary);
+    }
+  } catch {
+    // Fall back to the legacy text log parser below.
+  }
+
   const logLines = logs.trim().split(/\r?\n/);
 
   const activityLogs = getActivityLogs(logLines);
