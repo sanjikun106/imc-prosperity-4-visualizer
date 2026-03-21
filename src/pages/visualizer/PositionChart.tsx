@@ -71,5 +71,7 @@ export function PositionChart({ symbols }: PositionChartProps): ReactNode {
     colorIndex: (i + 1) % 10,
   }));
 
-  return <Chart title="Positions (% of limit)" series={series} min={-100} max={100} />;
+  const title = symbols.length === 1 ? `${symbols[0]} - Position (% of limit)` : 'Positions (% of limit)';
+
+  return <Chart title={title} series={series} min={-100} max={100} />;
 }

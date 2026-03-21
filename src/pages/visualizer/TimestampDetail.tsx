@@ -4,11 +4,9 @@ import { ScrollableCodeHighlight } from '../../components/ScrollableCodeHighligh
 import { AlgorithmDataRow } from '../../models.ts';
 import { useStore } from '../../store.ts';
 import { formatNumber } from '../../utils/format.ts';
-import { ConversionObservationsTable } from './ConversionObservationsTable.tsx';
 import { ListingsTable } from './ListingsTable.tsx';
 import { OrderDepthTable } from './OrderDepthTable.tsx';
 import { OrdersTable } from './OrdersTable.tsx';
-import { PlainValueObservationsTable } from './PlainValueObservationsTable.tsx';
 import { PositionTable } from './PositionTable.tsx';
 import { ProfitLossTable } from './ProfitLossTable.tsx';
 import { TradesTable } from './TradesTable.tsx';
@@ -23,15 +21,35 @@ function formatTraderData(value: any): string {
 
 export interface TimestampDetailProps {
   row: AlgorithmDataRow;
+  symbols: string[];
 }
 
 export function TimestampDetail({
-  row: { state, orders, conversions, traderData, algorithmLogs, sandboxLogs },
+  row: { state, orders, traderData, algorithmLogs },
+  symbols,
 }: TimestampDetailProps): ReactNode {
   const algorithm = useStore(state => state.algorithm)!;
+  const selectedSymbolSet = new Set(symbols);
+
+  const filteredListings = Object.fromEntries(
+    Object.entries(state.listings).filter(([symbol]) => selectedSymbolSet.has(symbol)),
+  );
+  const filteredOrderDepths = Object.fromEntries(
+    Object.entries(state.orderDepths).filter(([symbol]) => selectedSymbolSet.has(symbol)),
+  );
+  const filteredOwnTrades = Object.fromEntries(
+    Object.entries(state.ownTrades).filter(([symbol]) => selectedSymbolSet.has(symbol)),
+  );
+  const filteredMarketTrades = Object.fromEntries(
+    Object.entries(state.marketTrades).filter(([symbol]) => selectedSymbolSet.has(symbol)),
+  );
+  const filteredOrders = Object.fromEntries(Object.entries(orders).filter(([symbol]) => selectedSymbolSet.has(symbol)));
+  const filteredPosition = Object.fromEntries(
+    Object.entries(state.position).filter(([symbol]) => selectedSymbolSet.has(symbol)),
+  );
 
   const profitLoss = algorithm.activityLogs
-    .filter(row => row.timestamp === state.timestamp)
+    .filter(row => row.timestamp === state.timestamp && selectedSymbolSet.has(row.product))
     .reduce((acc, val) => acc + val.profitLoss, 0);
 
   return (
@@ -39,57 +57,44 @@ export function TimestampDetail({
       <Grid.Col span={12}>
         {/* prettier-ignore */}
         <Title order={5}>
-          Timestamp {formatNumber(state.timestamp)} • Profit / Loss: {formatNumber(profitLoss)} •
-          Conversions: {formatNumber(conversions)}
+          Timestamp {formatNumber(state.timestamp)} • Profit / Loss: {formatNumber(profitLoss)}
         </Title>
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Listings</Title>
-        <ListingsTable listings={state.listings} />
+        <ListingsTable listings={filteredListings} />
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Positions</Title>
-        <PositionTable position={state.position} />
+        <PositionTable position={filteredPosition} />
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Profit / Loss</Title>
-        <ProfitLossTable timestamp={state.timestamp} />
+        <ProfitLossTable timestamp={state.timestamp} symbols={symbols} />
       </Grid.Col>
-      {Object.entries(state.orderDepths).map(([symbol, orderDepth], i) => (
+      {Object.entries(filteredOrderDepths).map(([symbol, orderDepth], i) => (
         <Grid.Col key={i} span={{ xs: 12, sm: 4 }}>
           <Title order={5}>{symbol} order depth</Title>
           <OrderDepthTable orderDepth={orderDepth} />
         </Grid.Col>
       ))}
-      {Object.keys(state.orderDepths).length % 3 <= 2 && <Grid.Col span={{ xs: 12, sm: 4 }} />}
-      {Object.keys(state.orderDepths).length % 3 <= 1 && <Grid.Col span={{ xs: 12, sm: 4 }} />}
+      {Object.keys(filteredOrderDepths).length > 0 && Object.keys(filteredOrderDepths).length % 3 <= 2 && (
+        <Grid.Col span={{ xs: 12, sm: 4 }} />
+      )}
+      {Object.keys(filteredOrderDepths).length > 0 && Object.keys(filteredOrderDepths).length % 3 <= 1 && (
+        <Grid.Col span={{ xs: 12, sm: 4 }} />
+      )}
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Own trades</Title>
-        {<TradesTable trades={state.ownTrades} />}
+        {<TradesTable trades={filteredOwnTrades} />}
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Market trades</Title>
-        {<TradesTable trades={state.marketTrades} />}
+        {<TradesTable trades={filteredMarketTrades} />}
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Orders</Title>
-        {<OrdersTable orders={orders} />}
-      </Grid.Col>
-      <Grid.Col span={{ xs: 12, sm: 4 }}>
-        <Title order={5}>Plain value observations</Title>
-        <PlainValueObservationsTable plainValueObservations={state.observations.plainValueObservations} />
-      </Grid.Col>
-      <Grid.Col span={{ xs: 12, sm: 8 }}>
-        <Title order={5}>Conversion observations</Title>
-        <ConversionObservationsTable conversionObservations={state.observations.conversionObservations} />
-      </Grid.Col>
-      <Grid.Col span={{ xs: 12, sm: 6 }}>
-        <Title order={5}>Sandbox logs</Title>
-        {sandboxLogs ? (
-          <ScrollableCodeHighlight code={sandboxLogs} language="markdown" />
-        ) : (
-          <Text>Timestamp has no sandbox logs</Text>
-        )}
+        {<OrdersTable orders={filteredOrders} />}
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 6 }}>
         <Title order={5}>Algorithm logs</Title>

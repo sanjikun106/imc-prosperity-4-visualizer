@@ -9,9 +9,14 @@ export interface ProfitLossChartProps {
 
 export function ProfitLossChart({ symbols }: ProfitLossChartProps): ReactNode {
   const algorithm = useStore(state => state.algorithm)!;
+  const selectedSymbolSet = new Set(symbols);
 
   const dataByTimestamp = new Map<number, number>();
   for (const row of algorithm.activityLogs) {
+    if (!selectedSymbolSet.has(row.product)) {
+      continue;
+    }
+
     if (!dataByTimestamp.has(row.timestamp)) {
       dataByTimestamp.set(row.timestamp, row.profitLoss);
     } else {
@@ -19,13 +24,16 @@ export function ProfitLossChart({ symbols }: ProfitLossChartProps): ReactNode {
     }
   }
 
-  const series: Highcharts.SeriesOptionsType[] = [
-    {
+  const title = symbols.length === 1 ? `${symbols[0]} - Profit / Loss` : 'Profit / Loss';
+  const series: Highcharts.SeriesOptionsType[] = [];
+
+  if (symbols.length > 1) {
+    series.push({
       type: 'line',
       name: 'Total',
       data: [...dataByTimestamp.keys()].map(timestamp => [timestamp, dataByTimestamp.get(timestamp)]),
-    },
-  ];
+    });
+  }
 
   symbols.forEach(symbol => {
     const data = [];
@@ -40,9 +48,9 @@ export function ProfitLossChart({ symbols }: ProfitLossChartProps): ReactNode {
       type: 'line',
       name: symbol,
       data,
-      dashStyle: 'Dash',
+      dashStyle: symbols.length > 1 ? 'Dash' : 'Solid',
     });
   });
 
-  return <Chart title="Profit / Loss" series={series} />;
+  return <Chart title={title} series={series} />;
 }
