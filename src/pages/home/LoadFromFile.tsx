@@ -1,5 +1,5 @@
 import { Group, Text } from '@mantine/core';
-import { Dropzone, FileRejection } from '@mantine/dropzone';
+import { Dropzone, FileRejection, MIME_TYPES } from '@mantine/dropzone';
 import { IconUpload } from '@tabler/icons-react';
 import { ReactNode, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { ErrorAlert } from '../../components/ErrorAlert.tsx';
 import { useAsync } from '../../hooks/use-async.ts';
 import { useStore } from '../../store.ts';
 import { parseAlgorithmLogs } from '../../utils/algorithm.tsx';
+import { extractLogFromZip } from '../../utils/zip.ts';
 import { HomeCard } from './HomeCard.tsx';
 
 function DropzoneContent(): ReactNode {
@@ -28,28 +29,25 @@ export function LoadFromFile(): ReactNode {
   const setAlgorithm = useStore(state => state.setAlgorithm);
 
   const onDrop = useAsync(
-    (files: File[]) =>
-      new Promise<void>((resolve, reject) => {
-        setError(undefined);
+    async (files: File[]) => {
+      setError(undefined);
 
-        const reader = new FileReader();
+      const file = files[0];
+      const normalizedName = file.name.toLowerCase();
 
-        reader.addEventListener('load', () => {
-          try {
-            setAlgorithm(parseAlgorithmLogs(reader.result as string));
-            navigate('/visualizer');
-            resolve();
-          } catch (err: any) {
-            reject(err);
-          }
-        });
+      let logContents: string;
 
-        reader.addEventListener('error', () => {
-          reject(new Error('FileReader emitted an error event'));
-        });
+      if (normalizedName.endsWith('.zip')) {
+        logContents = (await extractLogFromZip(file)).contents;
+      } else if (normalizedName.endsWith('.log')) {
+        logContents = await file.text();
+      } else {
+        throw new Error('Unsupported file type. Please upload a .log file or a .zip archive containing a .log file.');
+      }
 
-        reader.readAsText(files[0]);
-      }),
+      setAlgorithm(parseAlgorithmLogs(logContents));
+      navigate('/visualizer');
+    },
   );
 
   const onReject = useCallback((rejections: FileRejection[]) => {
@@ -57,7 +55,7 @@ export function LoadFromFile(): ReactNode {
 
     for (const rejection of rejections) {
       const errorType = {
-        'file-invalid-type': 'Invalid type, only log files are supported.',
+        'file-invalid-type': 'Invalid type, only .log files and .zip archives are supported.',
         'file-too-large': 'File too large.',
         'file-too-small': 'File too small.',
         'too-many-files': 'Too many files.',
@@ -76,6 +74,10 @@ export function LoadFromFile(): ReactNode {
         older local backtests.
       </Text>
       <Text>
+        You can also upload a <code>.zip</code> archive from Prosperity. If it contains a <code>.log</code> file, the
+        visualizer will extract and open it automatically.
+      </Text>
+      <Text>
         If Prosperity gives you both a <code>.log</code> file and a <code>.json</code> file, upload the{' '}
         <code>.log</code> file here. The summary <code>.json</code> export does not include the per-timestamp logs
         needed by the visualizer.
@@ -84,7 +86,18 @@ export function LoadFromFile(): ReactNode {
       {error && <ErrorAlert error={error} />}
       {onDrop.error && <ErrorAlert error={onDrop.error} />}
 
-      <Dropzone onDrop={onDrop.call} onReject={onReject} multiple={false} loading={onDrop.loading}>
+      <Dropzone
+        onDrop={onDrop.call}
+        onReject={onReject}
+        multiple={false}
+        loading={onDrop.loading}
+        accept={{
+          'application/octet-stream': ['.log', '.zip'],
+          'application/json': ['.log'],
+          [MIME_TYPES.zip]: ['.zip'],
+          'text/plain': ['.log'],
+        }}
+      >
         <Dropzone.Idle>
           <DropzoneContent />
         </Dropzone.Idle>
