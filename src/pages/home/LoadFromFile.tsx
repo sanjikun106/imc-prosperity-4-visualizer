@@ -28,27 +28,25 @@ export function LoadFromFile(): ReactNode {
 
   const setAlgorithm = useStore(state => state.setAlgorithm);
 
-  const onDrop = useAsync(
-    async (files: File[]) => {
-      setError(undefined);
+  const onDrop = useAsync(async (files: File[]) => {
+    setError(undefined);
 
-      const file = files[0];
-      const normalizedName = file.name.toLowerCase();
+    const file = files[0];
+    const normalizedName = file.name.toLowerCase();
 
-      let logContents: string;
+    let logContents: string;
 
-      if (normalizedName.endsWith('.zip')) {
-        logContents = (await extractLogFromZip(file)).contents;
-      } else if (normalizedName.endsWith('.log')) {
-        logContents = await file.text();
-      } else {
-        throw new Error('Unsupported file type. Please upload a .log file or a .zip archive containing a .log file.');
-      }
+    if (normalizedName.endsWith('.zip')) {
+      logContents = (await extractLogFromZip(file)).contents;
+    } else if (normalizedName.endsWith('.log')) {
+      logContents = await file.text();
+    } else {
+      throw new Error('Unsupported file type. Please upload a .log file or a .zip archive containing a .log file.');
+    }
 
-      setAlgorithm(parseAlgorithmLogs(logContents));
-      navigate('/visualizer');
-    },
-  );
+    setAlgorithm(parseAlgorithmLogs(logContents));
+    navigate('/visualizer');
+  });
 
   const onReject = useCallback((rejections: FileRejection[]) => {
     const messages: string[] = [];
