@@ -11,6 +11,11 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+#ignore zzip files
+*.zzip
+.zip
+*.zip
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
