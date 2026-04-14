@@ -36,11 +36,21 @@ interface Prosperity4LogEntry {
   timestamp?: number;
 }
 
+interface Prosperity4TradeHistoryEntry {
+  buyer?: string;
+  price?: number;
+  quantity?: number;
+  seller?: string;
+  symbol?: string;
+  timestamp?: number;
+}
+
 interface Prosperity4LogFile {
   activitiesLog?: string;
   logs?: Prosperity4LogEntry[];
   graphLog?: string;
   positions?: unknown;
+  tradeHistory?: Prosperity4TradeHistoryEntry[];
 }
 
 function getColumnValues(columns: string[], indices: number[]): number[] {
@@ -324,6 +334,29 @@ function getAlgorithmDataFromProsperity4Logs(logEntries: Prosperity4LogEntry[]):
   return rows;
 }
 
+function parseTradeHistory(entries: Prosperity4TradeHistoryEntry[] | undefined): Trade[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries
+    .filter(
+      entry =>
+        typeof entry.symbol === 'string' &&
+        typeof entry.price === 'number' &&
+        typeof entry.quantity === 'number' &&
+        typeof entry.timestamp === 'number',
+    )
+    .map(entry => ({
+      symbol: entry.symbol!,
+      price: entry.price!,
+      quantity: entry.quantity!,
+      buyer: entry.buyer || '',
+      seller: entry.seller || '',
+      timestamp: entry.timestamp!,
+    }));
+}
+
 function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary?: AlgorithmSummary): Algorithm {
   const activityLogs =
     typeof logFile.activitiesLog === 'string' ? parseActivityLogLines(logFile.activitiesLog.trim().split(/\r?\n/)) : [];
@@ -352,6 +385,7 @@ function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary
     summary,
     activityLogs,
     data,
+    marketTradeHistory: parseTradeHistory(logFile.tradeHistory),
   };
 }
 
@@ -392,6 +426,7 @@ export function parseAlgorithmLogs(logs: string, summary?: AlgorithmSummary): Al
     summary,
     activityLogs,
     data,
+    marketTradeHistory: [],
   };
 }
 

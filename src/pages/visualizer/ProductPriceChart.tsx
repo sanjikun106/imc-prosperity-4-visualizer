@@ -43,8 +43,8 @@ type SeriesId =
   | 'take-sell'
   | 'make-bid-filled'
   | 'make-ask-filled'
-  | 'flatten-buy'
-  | 'flatten-sell';
+  | 'market-trade-buy'
+  | 'market-trade-sell';
 
 type PriceLineSeriesId = Extract<
   SeriesId,
@@ -128,8 +128,8 @@ const SERIES_OPTIONS: { id: SeriesId; label: string; color: string; kind: 'line'
   { id: 'take-sell', label: 'Take Sell ▼', color: '#ef4444', kind: 'marker' },
   { id: 'make-bid-filled', label: 'Make Bid Filled ■', color: '#16a34a', kind: 'marker' },
   { id: 'make-ask-filled', label: 'Make Ask Filled ■', color: '#dc2626', kind: 'marker' },
-  { id: 'flatten-buy', label: 'Flatten Buy ●', color: '#facc15', kind: 'marker' },
-  { id: 'flatten-sell', label: 'Flatten Sell ●', color: '#facc15', kind: 'marker' },
+  { id: 'market-trade-buy', label: 'Market Trade Buy ●', color: '#22c55e', kind: 'marker' },
+  { id: 'market-trade-sell', label: 'Market Trade Sell ●', color: '#ef4444', kind: 'marker' },
 ];
 
 const SERIES_LABELS = Object.fromEntries(SERIES_OPTIONS.map(option => [option.id, option.label])) as Record<
@@ -341,10 +341,6 @@ function getParsedActions(row: AlgorithmDataRow): ParsedAction[] {
       id = 'make-bid-filled';
     } else if (action === 'MAKE' && normalizedSide === 'sell') {
       id = 'make-ask-filled';
-    } else if (action === 'FLATTEN' && normalizedSide === 'buy') {
-      id = 'flatten-buy';
-    } else if (action === 'FLATTEN' && normalizedSide === 'sell') {
-      id = 'flatten-sell';
     }
 
     if (id === undefined) {
@@ -415,6 +411,24 @@ function getTradeSeriesId(row: AlgorithmDataRow | undefined, trade: Trade): Mark
   }
 
   return null;
+}
+
+function getMarketTradeSeriesId(
+  row: ActivityLogRow | undefined,
+  trade: Trade,
+): 'market-trade-buy' | 'market-trade-sell' {
+  const bestBid = row?.bidPrices[0];
+  const bestAsk = row?.askPrices[0];
+
+  if (bestAsk !== undefined && trade.price >= bestAsk) {
+    return 'market-trade-buy';
+  }
+
+  if (bestBid !== undefined && trade.price <= bestBid) {
+    return 'market-trade-sell';
+  }
+
+  return row !== undefined && trade.price >= row.midPrice ? 'market-trade-buy' : 'market-trade-sell';
 }
 
 function escapeRegExp(value: string): string {
@@ -596,6 +610,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     }
 
     const seenTrades = new Set<string>();
+    const seenMarketTrades = new Set<string>();
     const tradeDeltasByTimestamp = new Map<number, number>();
     const allMarkers: MarkerEntry[] = [];
     const triangleMarkers: TriangleMarkerEntry[] = [];
@@ -627,8 +642,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
           );
         }
 
-        const isBuyMarker =
-          tradeSeriesId === 'take-buy' || tradeSeriesId === 'make-bid-filled' || tradeSeriesId === 'flatten-buy';
+        const isBuyMarker = tradeSeriesId === 'take-buy' || tradeSeriesId === 'make-bid-filled';
         const markerSize = getMarkerSize(trade.quantity);
 
         if (tradeSeriesId === 'take-buy' || tradeSeriesId === 'take-sell') {
@@ -667,6 +681,48 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         });
         markerTooltipByTimestamp.set(trade.timestamp, tooltipEntries);
       }
+    }
+
+    const marketTrades =
+      algorithm.marketTradeHistory.length > 0
+        ? algorithm.marketTradeHistory
+        : algorithm.data.flatMap(row => row.state.marketTrades[symbol] || []);
+
+    for (const trade of marketTrades) {
+      if (trade.symbol !== symbol) {
+        continue;
+      }
+
+      const key = getTradeKey(trade);
+      if (seenMarketTrades.has(key)) {
+        continue;
+      }
+
+      seenMarketTrades.add(key);
+
+      const tradeSeriesId = getMarketTradeSeriesId(rowByTimestamp.get(trade.timestamp), trade);
+      allMarkers.push({
+        filterId: tradeSeriesId,
+        marker: {
+          id: `${tradeSeriesId}-${key}`,
+          time: toChartTime(trade.timestamp),
+          position: tradeSeriesId === 'market-trade-buy' ? 'atPriceBottom' : 'atPriceTop',
+          price: trade.price,
+          color: SERIES_COLORS[tradeSeriesId],
+          shape: 'circle',
+          size: getMarkerSize(trade.quantity),
+        },
+      });
+
+      const tooltipEntries = markerTooltipByTimestamp.get(trade.timestamp) || [];
+      tooltipEntries.push({
+        filterId: tradeSeriesId,
+        label: SERIES_LABELS[tradeSeriesId],
+        color: SERIES_COLORS[tradeSeriesId],
+        price: trade.price,
+        quantity: trade.quantity,
+      });
+      markerTooltipByTimestamp.set(trade.timestamp, tooltipEntries);
     }
 
     allMarkers.sort((a, b) => getNumericTime(a.marker.time)! - getNumericTime(b.marker.time)!);

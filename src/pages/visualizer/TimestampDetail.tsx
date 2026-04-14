@@ -40,9 +40,22 @@ export function TimestampDetail({
   const filteredOwnTrades = Object.fromEntries(
     Object.entries(state.ownTrades).filter(([symbol]) => selectedSymbolSet.has(symbol)),
   );
-  const filteredMarketTrades = Object.fromEntries(
-    Object.entries(state.marketTrades).filter(([symbol]) => selectedSymbolSet.has(symbol)),
-  );
+  const filteredMarketTrades = (
+    algorithm.marketTradeHistory.length > 0
+      ? algorithm.marketTradeHistory
+      : Object.values(state.marketTrades)
+          .flat()
+          .filter(trade => trade.timestamp === state.timestamp)
+  )
+    .filter(trade => trade.timestamp === state.timestamp && selectedSymbolSet.has(trade.symbol))
+    .reduce<Record<string, typeof algorithm.marketTradeHistory>>((acc, trade) => {
+      if (acc[trade.symbol] === undefined) {
+        acc[trade.symbol] = [];
+      }
+
+      acc[trade.symbol].push(trade);
+      return acc;
+    }, {});
   const filteredOrders = Object.fromEntries(Object.entries(orders).filter(([symbol]) => selectedSymbolSet.has(symbol)));
   const filteredPosition = Object.fromEntries(
     Object.entries(state.position).filter(([symbol]) => selectedSymbolSet.has(symbol)),
