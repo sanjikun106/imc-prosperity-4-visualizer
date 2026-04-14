@@ -163,6 +163,24 @@ function formatChartTime(time: ChartTime): string {
   return numericTime === null ? '' : formatNumber(numericTime);
 }
 
+function hasBookData(row: ActivityLogRow): boolean {
+  return row.bidPrices.length > 0 || row.askPrices.length > 0;
+}
+
+function getMidPriceForChart(row: ActivityLogRow | undefined): number | undefined {
+  if (row === undefined || Number.isNaN(row.midPrice)) {
+    return undefined;
+  }
+
+  // Some exports contain fully empty book rows with mid_price=0.0.
+  // Treat those as "no mid-price point" rather than plotting a fake drop to zero.
+  if (!hasBookData(row) && row.midPrice === 0) {
+    return undefined;
+  }
+
+  return row.midPrice;
+}
+
 function getBestBidPrice(orderDepth?: OrderDepth): number | undefined {
   const prices = Object.keys(orderDepth?.buyOrders || {}).map(Number);
   return prices.length > 0 ? Math.max(...prices) : undefined;
@@ -448,7 +466,7 @@ function createTooltipLines(
       ['ask-1', row.askPrices[0], row.askVolumes[0]],
       ['ask-2', row.askPrices[1], row.askVolumes[1]],
       ['ask-3', row.askPrices[2], row.askVolumes[2]],
-      ['mid-price', row.midPrice, undefined],
+      ['mid-price', getMidPriceForChart(row), undefined],
       ['fair-price', fairPrice, undefined],
     ];
 
@@ -565,7 +583,10 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         ask3Data.push({ time: toChartTime(row.timestamp), value: row.askPrices[2] });
       }
 
-      midData.push({ time: toChartTime(row.timestamp), value: row.midPrice });
+      const midPrice = getMidPriceForChart(row);
+      if (midPrice !== undefined) {
+        midData.push({ time: toChartTime(row.timestamp), value: midPrice });
+      }
       const fairPrice = getFairPriceFromLogs(rowsByTimestamp.get(row.timestamp), symbol);
       if (fairPrice !== undefined) {
         fairByTimestamp.set(row.timestamp, fairPrice);
@@ -997,7 +1018,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
       {
         chart: priceChart,
         series: priceSeriesRefs.current['mid-price']!,
-        valueAt: time => derivedData.rowByTimestamp.get(time)?.midPrice,
+        valueAt: time => getMidPriceForChart(derivedData.rowByTimestamp.get(time)),
       },
       {
         chart: posChart,
@@ -1010,7 +1031,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
       {
         chart: priceChart,
         series: priceSeriesRefs.current['mid-price']!,
-        valueAt: time => derivedData.rowByTimestamp.get(time)?.midPrice,
+        valueAt: time => getMidPriceForChart(derivedData.rowByTimestamp.get(time)),
       },
       {
         chart: pnlChart,
