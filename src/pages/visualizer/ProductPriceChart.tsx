@@ -695,9 +695,20 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     };
   }, [algorithm, symbol]);
 
+  const shouldPlotMidPrice = useMemo(() => derivedData.midData.some(point => point.value !== 0), [derivedData.midData]);
+  const availableSeriesOptions = useMemo(
+    () => SERIES_OPTIONS.filter(option => option.id !== 'mid-price' || shouldPlotMidPrice),
+    [shouldPlotMidPrice],
+  );
+
   useEffect(() => {
-    visibleSeriesIdsRef.current = new Set(visibleSeriesIds as SeriesId[]);
-  }, [visibleSeriesIds]);
+    const nextVisibleSeriesIds = new Set(visibleSeriesIds as SeriesId[]);
+    if (!shouldPlotMidPrice) {
+      nextVisibleSeriesIds.delete('mid-price');
+    }
+
+    visibleSeriesIdsRef.current = nextVisibleSeriesIds;
+  }, [shouldPlotMidPrice, visibleSeriesIds]);
 
   useEffect(() => {
     if (activeTooltipTimestamp === null) {
@@ -709,7 +720,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
       lines: createTooltipLines(
         derivedData.rowByTimestamp.get(activeTooltipTimestamp),
         derivedData.fairByTimestamp.get(activeTooltipTimestamp),
-        new Set(visibleSeriesIds as SeriesId[]),
+        visibleSeriesIdsRef.current,
         derivedData.markerTooltipByTimestamp.get(activeTooltipTimestamp) || [],
       ),
     });
@@ -718,6 +729,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     derivedData.fairByTimestamp,
     derivedData.markerTooltipByTimestamp,
     derivedData.rowByTimestamp,
+    shouldPlotMidPrice,
     visibleSeriesIds,
   ]);
 
@@ -1092,6 +1104,9 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
 
   useEffect(() => {
     const visibleIds = new Set(visibleSeriesIds as SeriesId[]);
+    if (!shouldPlotMidPrice) {
+      visibleIds.delete('mid-price');
+    }
 
     (Object.entries(priceSeriesRefs.current) as [PriceLineSeriesId, ISeriesApi<'Line'> | null][]).forEach(
       ([id, series]) => {
@@ -1105,7 +1120,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     triangleMarkerPrimitiveRef.current?.setMarkers(
       derivedData.triangleMarkers.filter(entry => visibleIds.has(entry.filterId)),
     );
-  }, [derivedData, visibleSeriesIds]);
+  }, [derivedData, shouldPlotMidPrice, visibleSeriesIds]);
 
   return (
     <Grid align="flex-start">
@@ -1173,7 +1188,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         <VisualizerCard title="Price Plot Filter">
           <Checkbox.Group value={visibleSeriesIds} onChange={setVisibleSeriesIds}>
             <Stack gap="xs">
-              {SERIES_OPTIONS.map(option => (
+              {availableSeriesOptions.map(option => (
                 <Checkbox key={option.id} value={option.id} label={option.label} />
               ))}
             </Stack>
