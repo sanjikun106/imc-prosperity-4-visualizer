@@ -1,4 +1,4 @@
-import { Box, Checkbox, Grid, Stack, Text } from '@mantine/core';
+import { Box, Checkbox, Grid, Stack, Text, TextInput } from '@mantine/core';
 import {
   BaselineSeries,
   type Time as ChartTime,
@@ -84,6 +84,7 @@ interface DerivedChartData {
 interface MarkerEntry {
   filterId: MarkerSeriesId;
   marker: SeriesMarker<ChartTime>;
+  quantity: number;
 }
 
 interface TriangleMarkerEntry {
@@ -113,6 +114,12 @@ interface TooltipLine {
 interface TooltipState {
   timestamp: number;
   lines: TooltipLine[];
+}
+
+interface MarketTradeVolumeFilter {
+  exact?: number;
+  min?: number;
+  max?: number;
 }
 
 const SERIES_OPTIONS: { id: SeriesId; label: string; color: string; kind: 'line' | 'marker' }[] = [
@@ -161,6 +168,42 @@ function formatValue(value: number | undefined): string {
 function formatChartTime(time: ChartTime): string {
   const numericTime = getNumericTime(time);
   return numericTime === null ? '' : formatNumber(numericTime);
+}
+
+function parseVolumeInput(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
+function matchesMarketTradeVolumeFilter(quantity: number, filter: MarketTradeVolumeFilter): boolean {
+  const volume = Math.abs(quantity);
+
+  if (filter.exact !== undefined) {
+    return volume === filter.exact;
+  }
+
+  if (filter.min !== undefined && volume < filter.min) {
+    return false;
+  }
+
+  if (filter.max !== undefined && volume > filter.max) {
+    return false;
+  }
+
+  return true;
+}
+
+function isMarketTradeSeries(id: MarkerSeriesId): id is 'market-trade-buy' | 'market-trade-sell' {
+  return id === 'market-trade-buy' || id === 'market-trade-sell';
 }
 
 function hasBookData(row: ActivityLogRow): boolean {
@@ -469,6 +512,7 @@ function createTooltipLines(
   fairPrice: number | undefined,
   visibleSeries: Set<SeriesId>,
   markerEntries: MarkerTooltipEntry[],
+  marketTradeVolumeFilter: MarketTradeVolumeFilter,
 ): TooltipLine[] {
   const lines: TooltipLine[] = [];
 
@@ -503,6 +547,10 @@ function createTooltipLines(
       continue;
     }
 
+    if (isMarketTradeSeries(entry.filterId) && !matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)) {
+      continue;
+    }
+
     lines.push({
       key: `${entry.filterId}-${entry.price}-${entry.quantity}`,
       label: entry.label,
@@ -520,6 +568,9 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
 
   const [visibleSeriesIds, setVisibleSeriesIds] = useState<string[]>(DEFAULT_VISIBLE_SERIES);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [exactMarketTradeVolume, setExactMarketTradeVolume] = useState('');
+  const [minMarketTradeVolume, setMinMarketTradeVolume] = useState('');
+  const [maxMarketTradeVolume, setMaxMarketTradeVolume] = useState('');
 
   const priceContainerRef = useRef<HTMLDivElement>(null);
   const pnlContainerRef = useRef<HTMLDivElement>(null);
@@ -547,9 +598,22 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
   const positionZeroSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   const visibleSeriesIdsRef = useRef<Set<SeriesId>>(new Set(DEFAULT_VISIBLE_SERIES as SeriesId[]));
+  const marketTradeVolumeFilterRef = useRef<MarketTradeVolumeFilter>({});
   const rangeSyncingRef = useRef(false);
   const crosshairSyncingRef = useRef(false);
   const activeTooltipTimestamp = tooltip?.timestamp ?? null;
+
+  const marketTradeVolumeFilter = useMemo<MarketTradeVolumeFilter>(() => {
+    return {
+      exact: parseVolumeInput(exactMarketTradeVolume),
+      min: parseVolumeInput(minMarketTradeVolume),
+      max: parseVolumeInput(maxMarketTradeVolume),
+    };
+  }, [exactMarketTradeVolume, maxMarketTradeVolume, minMarketTradeVolume]);
+
+  useEffect(() => {
+    marketTradeVolumeFilterRef.current = marketTradeVolumeFilter;
+  }, [marketTradeVolumeFilter]);
 
   const derivedData = useMemo<DerivedChartData>(() => {
     const activityRows = algorithm.activityLogs
@@ -668,6 +732,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
           allMarkers.push({
             filterId: tradeSeriesId,
             marker,
+            quantity: trade.quantity,
           });
         }
 
@@ -712,6 +777,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
           shape: 'circle',
           size: getMarkerSize(trade.quantity),
         },
+        quantity: trade.quantity,
       });
 
       const tooltipEntries = markerTooltipByTimestamp.get(trade.timestamp) || [];
@@ -799,6 +865,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         derivedData.fairByTimestamp.get(activeTooltipTimestamp),
         visibleSeriesIdsRef.current,
         derivedData.markerTooltipByTimestamp.get(activeTooltipTimestamp) || [],
+        marketTradeVolumeFilter,
       ),
     });
   }, [
@@ -806,6 +873,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     derivedData.fairByTimestamp,
     derivedData.markerTooltipByTimestamp,
     derivedData.rowByTimestamp,
+    marketTradeVolumeFilter,
     shouldPlotMidPrice,
     visibleSeriesIds,
   ]);
@@ -1009,6 +1077,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         derivedData.fairByTimestamp.get(timestamp),
         visibleSeriesIdsRef.current,
         derivedData.markerTooltipByTimestamp.get(timestamp) || [],
+        marketTradeVolumeFilterRef.current,
       );
 
       setTooltip({
@@ -1192,12 +1261,21 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
     );
 
     markerPluginRef.current?.setMarkers(
-      derivedData.allMarkers.filter(entry => visibleIds.has(entry.filterId)).map(entry => entry.marker),
+      derivedData.allMarkers
+        .filter(entry => visibleIds.has(entry.filterId))
+        .filter(entry => {
+          if (!isMarketTradeSeries(entry.filterId)) {
+            return true;
+          }
+
+          return matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter);
+        })
+        .map(entry => entry.marker),
     );
     triangleMarkerPrimitiveRef.current?.setMarkers(
       derivedData.triangleMarkers.filter(entry => visibleIds.has(entry.filterId)),
     );
-  }, [derivedData, shouldPlotMidPrice, visibleSeriesIds]);
+  }, [derivedData, marketTradeVolumeFilter, shouldPlotMidPrice, visibleSeriesIds]);
 
   return (
     <Grid align="flex-start">
@@ -1270,6 +1348,34 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
               ))}
             </Stack>
           </Checkbox.Group>
+          <Text size="sm" fw={600} mt="md" mb={6}>
+            Bot Trade Volume Filter
+          </Text>
+          <Stack gap="xs">
+            <TextInput
+              label="Exact volume"
+              placeholder="e.g. 5"
+              value={exactMarketTradeVolume}
+              onChange={event => setExactMarketTradeVolume(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Min volume"
+              placeholder="e.g. 1"
+              value={minMarketTradeVolume}
+              onChange={event => setMinMarketTradeVolume(event.currentTarget.value)}
+              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
+            />
+            <TextInput
+              label="Max volume"
+              placeholder="e.g. 20"
+              value={maxMarketTradeVolume}
+              onChange={event => setMaxMarketTradeVolume(event.currentTarget.value)}
+              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
+            />
+            <Text size="xs" c="dimmed">
+              Exact volume overrides range. Applies to Market Trade Buy/Sell markers only.
+            </Text>
+          </Stack>
         </VisualizerCard>
       </Grid.Col>
     </Grid>
