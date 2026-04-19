@@ -35,16 +35,19 @@ export function LoadFromFile(): ReactNode {
     const normalizedName = file.name.toLowerCase();
 
     let logContents: string;
+    let logFileName = file.name;
 
     if (normalizedName.endsWith('.zip')) {
-      logContents = (await extractLogFromZip(file)).contents;
+      const extracted = await extractLogFromZip(file);
+      logContents = extracted.contents;
+      logFileName = extracted.fileName;
     } else if (normalizedName.endsWith('.log')) {
       logContents = await file.text();
     } else {
       throw new Error('Unsupported file type. Please upload a .log file or a .zip archive containing a .log file.');
     }
 
-    setAlgorithm(parseAlgorithmLogs(logContents));
+    setAlgorithm(parseAlgorithmLogs(logContents, undefined, logFileName));
     navigate('/visualizer');
   });
 

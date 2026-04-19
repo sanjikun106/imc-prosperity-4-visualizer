@@ -13,6 +13,19 @@ import { TransportChart } from './TransportChart.tsx';
 import { VisualizerCard } from './VisualizerCard.tsx';
 import { VolumeChart } from './VolumeChart.tsx';
 
+function getRoundDayFromFileName(fileName: string | undefined): string | null {
+  if (fileName === undefined || fileName.trim().length === 0) {
+    return null;
+  }
+
+  const match = fileName.match(/round\s*-?\s*(\d+)\D+day\s*-?\s*(-?\d+)/i);
+  if (match === null) {
+    return null;
+  }
+
+  return `round${match[1]} day ${match[2]}`;
+}
+
 function formatCsvValue(value: number | string | undefined): string {
   if (value === undefined) {
     return '';
@@ -95,6 +108,8 @@ export function VisualizerPage(): ReactNode {
 
   const selectedProductSet = new Set(selectedProducts);
   const selectedActivityLogs = algorithm.activityLogs.filter(row => selectedProductSet.has(row.product));
+  const sourceLogFileName = algorithm.sourceLogFileName || algorithm.summary?.fileName;
+  const parsedRoundDay = getRoundDayFromFileName(sourceLogFileName);
 
   function handleDownloadOrderBookCsv(): void {
     const headers = [
@@ -231,6 +246,16 @@ export function VisualizerPage(): ReactNode {
             <Button mt="md" onClick={handleDownloadOrderBookCsv} disabled={selectedActivityLogs.length === 0}>
               Download Bid/Ask CSV
             </Button>
+            {sourceLogFileName && (
+              <Text mt="md" size="sm">
+                Log file: {sourceLogFileName}
+              </Text>
+            )}
+            {parsedRoundDay && (
+              <Text size="sm" fw={600}>
+                {parsedRoundDay}
+              </Text>
+            )}
           </VisualizerCard>
         </Grid.Col>
         <Grid.Col span={12}>

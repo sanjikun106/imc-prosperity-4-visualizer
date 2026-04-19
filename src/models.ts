@@ -99,6 +99,7 @@ export interface AlgorithmDataRow {
 
 export interface Algorithm {
   summary?: AlgorithmSummary;
+  sourceLogFileName?: string;
   activityLogs: ActivityLogRow[];
   data: AlgorithmDataRow[];
   marketTradeHistory: Trade[];

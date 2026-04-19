@@ -920,6 +920,8 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         borderColor,
         timeVisible: true,
         secondsVisible: true,
+        minBarSpacing: 0.02,
+        rightOffset: 4,
         tickMarkFormatter: formatChartTime,
       },
       handleScroll: true,
@@ -1279,7 +1281,46 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
 
   return (
     <Grid align="flex-start">
-      <Grid.Col span={{ xs: 12, lg: 9 }}>
+      <Grid.Col span={12}>
+        <VisualizerCard title="Price Plot Filter">
+          <Checkbox.Group value={visibleSeriesIds} onChange={setVisibleSeriesIds}>
+            <Stack gap="xs">
+              {availableSeriesOptions.map(option => (
+                <Checkbox key={option.id} value={option.id} label={option.label} />
+              ))}
+            </Stack>
+          </Checkbox.Group>
+          <Text size="sm" fw={600} mt="md" mb={6}>
+            Bot Trade Volume Filter
+          </Text>
+          <Stack gap="xs">
+            <TextInput
+              label="Exact volume"
+              placeholder="e.g. 5"
+              value={exactMarketTradeVolume}
+              onChange={event => setExactMarketTradeVolume(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Min volume"
+              placeholder="e.g. 1"
+              value={minMarketTradeVolume}
+              onChange={event => setMinMarketTradeVolume(event.currentTarget.value)}
+              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
+            />
+            <TextInput
+              label="Max volume"
+              placeholder="e.g. 20"
+              value={maxMarketTradeVolume}
+              onChange={event => setMaxMarketTradeVolume(event.currentTarget.value)}
+              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
+            />
+            <Text size="xs" c="dimmed">
+              Exact volume overrides range. Applies to Market Trade Buy/Sell markers only.
+            </Text>
+          </Stack>
+        </VisualizerCard>
+      </Grid.Col>
+      <Grid.Col span={12}>
         <VisualizerCard p={0}>
           <Box p="md" pb="xs">
             <Text fw={600} size="sm">
@@ -1337,45 +1378,6 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
               <Box ref={posContainerRef} style={{ height: '20vh', minHeight: 140 }} />
             </Box>
           </Box>
-        </VisualizerCard>
-      </Grid.Col>
-      <Grid.Col span={{ xs: 12, lg: 3 }}>
-        <VisualizerCard title="Price Plot Filter">
-          <Checkbox.Group value={visibleSeriesIds} onChange={setVisibleSeriesIds}>
-            <Stack gap="xs">
-              {availableSeriesOptions.map(option => (
-                <Checkbox key={option.id} value={option.id} label={option.label} />
-              ))}
-            </Stack>
-          </Checkbox.Group>
-          <Text size="sm" fw={600} mt="md" mb={6}>
-            Bot Trade Volume Filter
-          </Text>
-          <Stack gap="xs">
-            <TextInput
-              label="Exact volume"
-              placeholder="e.g. 5"
-              value={exactMarketTradeVolume}
-              onChange={event => setExactMarketTradeVolume(event.currentTarget.value)}
-            />
-            <TextInput
-              label="Min volume"
-              placeholder="e.g. 1"
-              value={minMarketTradeVolume}
-              onChange={event => setMinMarketTradeVolume(event.currentTarget.value)}
-              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
-            />
-            <TextInput
-              label="Max volume"
-              placeholder="e.g. 20"
-              value={maxMarketTradeVolume}
-              onChange={event => setMaxMarketTradeVolume(event.currentTarget.value)}
-              disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
-            />
-            <Text size="xs" c="dimmed">
-              Exact volume overrides range. Applies to Market Trade Buy/Sell markers only.
-            </Text>
-          </Stack>
         </VisualizerCard>
       </Grid.Col>
     </Grid>

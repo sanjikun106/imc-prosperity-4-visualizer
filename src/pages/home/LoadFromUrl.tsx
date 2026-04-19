@@ -19,7 +19,9 @@ export function LoadFromUrl(): ReactNode {
 
   const loadAlgorithm = useAsync(async (logsUrl: string): Promise<void> => {
     const logsResponse = await axios.get(logsUrl);
-    setAlgorithm(parseAlgorithmLogs(logsResponse.data));
+    const parsedUrl = new URL(logsUrl);
+    const fileName = parsedUrl.pathname.split('/').pop() || logsUrl;
+    setAlgorithm(parseAlgorithmLogs(logsResponse.data, undefined, fileName));
     navigate(`/visualizer?open=${logsUrl}`);
   });
 

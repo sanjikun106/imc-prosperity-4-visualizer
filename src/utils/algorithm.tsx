@@ -357,7 +357,11 @@ function parseTradeHistory(entries: Prosperity4TradeHistoryEntry[] | undefined):
     }));
 }
 
-function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary?: AlgorithmSummary): Algorithm {
+function getAlgorithmFromProsperity4LogFile(
+  logFile: Prosperity4LogFile,
+  summary?: AlgorithmSummary,
+  sourceLogFileName?: string,
+): Algorithm {
   const activityLogs =
     typeof logFile.activitiesLog === 'string' ? parseActivityLogLines(logFile.activitiesLog.trim().split(/\r?\n/)) : [];
 
@@ -383,17 +387,20 @@ function getAlgorithmFromProsperity4LogFile(logFile: Prosperity4LogFile, summary
 
   return {
     summary,
+    sourceLogFileName,
     activityLogs,
     data,
     marketTradeHistory: parseTradeHistory(logFile.tradeHistory),
   };
 }
 
-export function parseAlgorithmLogs(logs: string, summary?: AlgorithmSummary): Algorithm {
+export function parseAlgorithmLogs(logs: string, summary?: AlgorithmSummary, sourceLogFileName?: string): Algorithm {
+  const resolvedSourceLogFileName = sourceLogFileName || summary?.fileName;
+
   try {
     const parsedLogs = JSON.parse(logs);
     if (isProsperity4LogFile(parsedLogs) && typeof parsedLogs.activitiesLog === 'string') {
-      return getAlgorithmFromProsperity4LogFile(parsedLogs, summary);
+      return getAlgorithmFromProsperity4LogFile(parsedLogs, summary, resolvedSourceLogFileName);
     }
   } catch {
     // Fall back to the legacy text log parser below.
@@ -424,6 +431,7 @@ export function parseAlgorithmLogs(logs: string, summary?: AlgorithmSummary): Al
 
   return {
     summary,
+    sourceLogFileName: resolvedSourceLogFileName,
     activityLogs,
     data,
     marketTradeHistory: [],
