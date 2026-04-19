@@ -547,7 +547,10 @@ function createTooltipLines(
       continue;
     }
 
-    if (isMarketTradeSeries(entry.filterId) && !matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)) {
+    if (
+      isMarketTradeSeries(entry.filterId) &&
+      !matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)
+    ) {
       continue;
     }
 
