@@ -1287,27 +1287,35 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
       <Grid.Col span={12}>
         <VisualizerCard title="Price Plot Filter">
           <Checkbox.Group value={visibleSeriesIds} onChange={setVisibleSeriesIds}>
-            <Grid gutter="xs">
+            <Box
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'stretch',
+                gap: 8,
+              }}
+            >
               {availableSeriesOptions.map(option => (
-                <Grid.Col key={option.id} span={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+                <Box key={option.id} style={{ flex: '0 0 auto' }}>
                   <Box
-                    p="xs"
+                    px="xs"
+                    py={6}
                     style={{
                       border: '1px solid var(--mantine-color-default-border)',
-                      borderRadius: 8,
-                      height: '100%',
+                      borderRadius: 6,
+                      minWidth: 96,
                     }}
                   >
-                    <Stack gap={6} align="center">
-                      <Text size="xs" fw={500} ta="center">
+                    <Stack gap={4} align="center">
+                      <Text size="xs" fw={500} ta="center" style={{ lineHeight: 1.1 }}>
                         {option.label}
                       </Text>
                       <Checkbox value={option.id} aria-label={option.label} />
                     </Stack>
                   </Box>
-                </Grid.Col>
+                </Box>
               ))}
-            </Grid>
+            </Box>
           </Checkbox.Group>
           <Text size="sm" fw={600} mt="md" mb={6}>
             Bot Trade Volume Filter
