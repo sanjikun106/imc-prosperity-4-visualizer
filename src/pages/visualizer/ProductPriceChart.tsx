@@ -44,7 +44,8 @@ type SeriesId =
   | 'make-bid-filled'
   | 'make-ask-filled'
   | 'market-trade-buy'
-  | 'market-trade-sell';
+  | 'market-trade-sell'
+  | 'market-trade-unknown';
 
 type PriceLineSeriesId = Extract<
   SeriesId,
@@ -137,6 +138,7 @@ const SERIES_OPTIONS: { id: SeriesId; label: string; color: string; kind: 'line'
   { id: 'make-ask-filled', label: 'Make Ask Filled ■', color: '#dc2626', kind: 'marker' },
   { id: 'market-trade-buy', label: 'Market Trade Buy ●', color: '#22c55e', kind: 'marker' },
   { id: 'market-trade-sell', label: 'Market Trade Sell ●', color: '#ef4444', kind: 'marker' },
+  { id: 'market-trade-unknown', label: 'Market Trade Unknown ●', color: '#a855f7', kind: 'marker' },
 ];
 
 const SERIES_LABELS = Object.fromEntries(SERIES_OPTIONS.map(option => [option.id, option.label])) as Record<
@@ -202,8 +204,10 @@ function matchesMarketTradeVolumeFilter(quantity: number, filter: MarketTradeVol
   return true;
 }
 
-function isMarketTradeSeries(id: MarkerSeriesId): id is 'market-trade-buy' | 'market-trade-sell' {
-  return id === 'market-trade-buy' || id === 'market-trade-sell';
+function isMarketTradeSeries(
+  id: MarkerSeriesId,
+): id is 'market-trade-buy' | 'market-trade-sell' | 'market-trade-unknown' {
+  return id === 'market-trade-buy' || id === 'market-trade-sell' || id === 'market-trade-unknown';
 }
 
 function hasBookData(row: ActivityLogRow): boolean {
@@ -457,21 +461,21 @@ function getTradeSeriesId(row: AlgorithmDataRow | undefined, trade: Trade): Mark
 }
 
 function getMarketTradeSeriesId(
-  row: ActivityLogRow | undefined,
+  _row: ActivityLogRow | undefined,
   trade: Trade,
-): 'market-trade-buy' | 'market-trade-sell' {
-  const bestBid = row?.bidPrices[0];
-  const bestAsk = row?.askPrices[0];
+): 'market-trade-buy' | 'market-trade-sell' | 'market-trade-unknown' {
+  const buyer = trade.buyer.trim();
+  const seller = trade.seller.trim();
 
-  if (bestAsk !== undefined && trade.price >= bestAsk) {
+  if (buyer === 'SUBMISSION') {
     return 'market-trade-buy';
   }
 
-  if (bestBid !== undefined && trade.price <= bestBid) {
+  if (seller === 'SUBMISSION') {
     return 'market-trade-sell';
   }
 
-  return row !== undefined && trade.price >= row.midPrice ? 'market-trade-buy' : 'market-trade-sell';
+  return 'market-trade-unknown';
 }
 
 function escapeRegExp(value: string): string {
@@ -774,7 +778,12 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
         marker: {
           id: `${tradeSeriesId}-${key}`,
           time: toChartTime(trade.timestamp),
-          position: tradeSeriesId === 'market-trade-buy' ? 'atPriceBottom' : 'atPriceTop',
+          position:
+            tradeSeriesId === 'market-trade-buy'
+              ? 'atPriceBottom'
+              : tradeSeriesId === 'market-trade-sell'
+                ? 'atPriceTop'
+                : 'atPriceTop',
           price: trade.price,
           color: SERIES_COLORS[tradeSeriesId],
           shape: 'circle',
@@ -1342,7 +1351,7 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
               disabled={parseVolumeInput(exactMarketTradeVolume) !== undefined}
             />
             <Text size="xs" c="dimmed">
-              Exact volume overrides range. Applies to Market Trade Buy/Sell markers only.
+              Exact volume overrides range. Applies to all Market Trade markers.
             </Text>
           </Stack>
         </VisualizerCard>
