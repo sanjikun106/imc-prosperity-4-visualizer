@@ -43,9 +43,7 @@ type SeriesId =
   | 'take-sell'
   | 'make-bid-filled'
   | 'make-ask-filled'
-  | 'market-trade-buy'
-  | 'market-trade-sell'
-  | 'market-trade-unknown';
+  | 'market-trade';
 
 type PriceLineSeriesId = Extract<
   SeriesId,
@@ -136,9 +134,7 @@ const SERIES_OPTIONS: { id: SeriesId; label: string; color: string; kind: 'line'
   { id: 'take-sell', label: 'Take Sell ▼', color: '#ef4444', kind: 'marker' },
   { id: 'make-bid-filled', label: 'Make Bid Filled ■', color: '#16a34a', kind: 'marker' },
   { id: 'make-ask-filled', label: 'Make Ask Filled ■', color: '#dc2626', kind: 'marker' },
-  { id: 'market-trade-buy', label: 'Market Trade Buy ●', color: '#22c55e', kind: 'marker' },
-  { id: 'market-trade-sell', label: 'Market Trade Sell ●', color: '#ef4444', kind: 'marker' },
-  { id: 'market-trade-unknown', label: 'Market Trade Unknown ●', color: '#a855f7', kind: 'marker' },
+  { id: 'market-trade', label: 'Market Trade ●', color: '#8b5cf6', kind: 'marker' },
 ];
 
 const SERIES_LABELS = Object.fromEntries(SERIES_OPTIONS.map(option => [option.id, option.label])) as Record<
@@ -204,10 +200,8 @@ function matchesMarketTradeVolumeFilter(quantity: number, filter: MarketTradeVol
   return true;
 }
 
-function isMarketTradeSeries(
-  id: MarkerSeriesId,
-): id is 'market-trade-buy' | 'market-trade-sell' | 'market-trade-unknown' {
-  return id === 'market-trade-buy' || id === 'market-trade-sell' || id === 'market-trade-unknown';
+function isMarketTradeSeries(id: MarkerSeriesId): id is 'market-trade' {
+  return id === 'market-trade';
 }
 
 function hasBookData(row: ActivityLogRow): boolean {
@@ -460,22 +454,8 @@ function getTradeSeriesId(row: AlgorithmDataRow | undefined, trade: Trade): Mark
   return null;
 }
 
-function getMarketTradeSeriesId(
-  _row: ActivityLogRow | undefined,
-  trade: Trade,
-): 'market-trade-buy' | 'market-trade-sell' | 'market-trade-unknown' {
-  const buyer = trade.buyer.trim();
-  const seller = trade.seller.trim();
-
-  if (buyer === 'SUBMISSION') {
-    return 'market-trade-buy';
-  }
-
-  if (seller === 'SUBMISSION') {
-    return 'market-trade-sell';
-  }
-
-  return 'market-trade-unknown';
+function getMarketTradeSeriesId(): 'market-trade' {
+  return 'market-trade';
 }
 
 function escapeRegExp(value: string): string {
@@ -772,18 +752,13 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
 
       seenMarketTrades.add(key);
 
-      const tradeSeriesId = getMarketTradeSeriesId(rowByTimestamp.get(trade.timestamp), trade);
+      const tradeSeriesId = getMarketTradeSeriesId();
       allMarkers.push({
         filterId: tradeSeriesId,
         marker: {
           id: `${tradeSeriesId}-${key}`,
           time: toChartTime(trade.timestamp),
-          position:
-            tradeSeriesId === 'market-trade-buy'
-              ? 'atPriceBottom'
-              : tradeSeriesId === 'market-trade-sell'
-                ? 'atPriceTop'
-                : 'atPriceTop',
+          position: 'atPriceTop',
           price: trade.price,
           color: SERIES_COLORS[tradeSeriesId],
           shape: 'circle',
