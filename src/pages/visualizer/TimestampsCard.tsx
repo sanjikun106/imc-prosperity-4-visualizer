@@ -9,9 +9,15 @@ import { VisualizerCard } from './VisualizerCard.tsx';
 
 export interface TimestampsCardProps {
   symbols: string[];
+  marketTradeBuyerFilter?: string;
+  marketTradeSellerFilter?: string;
 }
 
-export function TimestampsCard({ symbols }: TimestampsCardProps): ReactNode {
+export function TimestampsCard({
+  symbols,
+  marketTradeBuyerFilter = '',
+  marketTradeSellerFilter = '',
+}: TimestampsCardProps): ReactNode {
   const algorithm = useStore(state => state.algorithm)!;
 
   const rowsByTimestamp: Record<number, AlgorithmDataRow> = {};
@@ -79,7 +85,12 @@ export function TimestampsCard({ symbols }: TimestampsCardProps): ReactNode {
       </Grid>
 
       {rowsByTimestamp[timestamp] ? (
-        <TimestampDetail row={rowsByTimestamp[timestamp]} symbols={symbols} />
+        <TimestampDetail
+          row={rowsByTimestamp[timestamp]}
+          symbols={symbols}
+          marketTradeBuyerFilter={marketTradeBuyerFilter}
+          marketTradeSellerFilter={marketTradeSellerFilter}
+        />
       ) : (
         <Text>No logs found for timestamp {formatNumber(timestamp)}</Text>
       )}

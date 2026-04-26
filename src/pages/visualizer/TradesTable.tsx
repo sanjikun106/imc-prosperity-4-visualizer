@@ -1,5 +1,5 @@
-import { Stack, Table, TextInput } from '@mantine/core';
-import { ReactNode, useState } from 'react';
+import { Table } from '@mantine/core';
+import { ReactNode } from 'react';
 import { ProsperitySymbol, Trade } from '../../models.ts';
 import { getAskColor, getBidColor } from '../../utils/colors.ts';
 import { formatNumber } from '../../utils/format.ts';
@@ -7,6 +7,8 @@ import { SimpleTable } from './SimpleTable.tsx';
 
 export interface TradesTableProps {
   trades: Record<ProsperitySymbol, Trade[]>;
+  buyerFilter?: string;
+  sellerFilter?: string;
 }
 
 function extractBuyerId(buyer: string): string {
@@ -27,10 +29,7 @@ function matchesFilter(value: string, filter: string): boolean {
   return value.includes(filter);
 }
 
-export function TradesTable({ trades }: TradesTableProps): ReactNode {
-  const [buyerFilter, setBuyerFilter] = useState('');
-  const [sellerFilter, setSellerFilter] = useState('');
-
+export function TradesTable({ trades, buyerFilter = '', sellerFilter = '' }: TradesTableProps): ReactNode {
   const rows: ReactNode[] = [];
   for (const symbol of Object.keys(trades).sort((a, b) => a.localeCompare(b))) {
     for (let i = 0; i < trades[symbol].length; i++) {
@@ -66,26 +65,6 @@ export function TradesTable({ trades }: TradesTableProps): ReactNode {
   }
 
   return (
-    <>
-      <Stack gap="xs" mb="md">
-        <TextInput
-          label="Filter by Buyer"
-          placeholder="e.g. 14"
-          value={buyerFilter}
-          onChange={event => setBuyerFilter(event.currentTarget.value)}
-        />
-        <TextInput
-          label="Filter by Seller"
-          placeholder="e.g. 38"
-          value={sellerFilter}
-          onChange={event => setSellerFilter(event.currentTarget.value)}
-        />
-      </Stack>
-      <SimpleTable
-        label="trades"
-        columns={['Symbol', 'Buyer', 'Seller', 'Price', 'Quantity', 'Timestamp']}
-        rows={rows}
-      />
-    </>
+    <SimpleTable label="trades" columns={['Symbol', 'Buyer', 'Seller', 'Price', 'Quantity', 'Timestamp']} rows={rows} />
   );
 }

@@ -22,11 +22,15 @@ function formatTraderData(value: any): string {
 export interface TimestampDetailProps {
   row: AlgorithmDataRow;
   symbols: string[];
+  marketTradeBuyerFilter?: string;
+  marketTradeSellerFilter?: string;
 }
 
 export function TimestampDetail({
   row: { state, orders, traderData, algorithmLogs },
   symbols,
+  marketTradeBuyerFilter = '',
+  marketTradeSellerFilter = '',
 }: TimestampDetailProps): ReactNode {
   const algorithm = useStore(state => state.algorithm)!;
   const selectedSymbolSet = new Set(symbols);
@@ -99,11 +103,23 @@ export function TimestampDetail({
       )}
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Own trades</Title>
-        {<TradesTable trades={filteredOwnTrades} />}
+        {
+          <TradesTable
+            trades={filteredOwnTrades}
+            buyerFilter={marketTradeBuyerFilter}
+            sellerFilter={marketTradeSellerFilter}
+          />
+        }
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Market trades</Title>
-        {<TradesTable trades={filteredMarketTrades} />}
+        {
+          <TradesTable
+            trades={filteredMarketTrades}
+            buyerFilter={marketTradeBuyerFilter}
+            sellerFilter={marketTradeSellerFilter}
+          />
+        }
       </Grid.Col>
       <Grid.Col span={{ xs: 12, sm: 4 }}>
         <Title order={5}>Orders</Title>

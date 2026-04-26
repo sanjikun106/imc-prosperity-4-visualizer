@@ -28,6 +28,10 @@ import { VisualizerCard } from './VisualizerCard.tsx';
 
 export interface ProductPriceChartProps {
   symbol: ProsperitySymbol;
+  marketTradeBuyerFilter?: string;
+  setMarketTradeBuyerFilter?: (value: string) => void;
+  marketTradeSellerFilter?: string;
+  setMarketTradeSellerFilter?: (value: string) => void;
 }
 
 type SeriesId =
@@ -549,7 +553,13 @@ function createTooltipLines(
   return lines;
 }
 
-export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode {
+export function ProductPriceChart({
+  symbol,
+  marketTradeBuyerFilter = '',
+  setMarketTradeBuyerFilter = () => {},
+  marketTradeSellerFilter = '',
+  setMarketTradeSellerFilter = () => {},
+}: ProductPriceChartProps): ReactNode {
   const algorithm = useStore(state => state.algorithm)!;
   const colorScheme = useActualColorScheme();
 
@@ -1328,6 +1338,23 @@ export function ProductPriceChart({ symbol }: ProductPriceChartProps): ReactNode
             <Text size="xs" c="dimmed">
               Exact volume overrides range. Applies to all Market Trade markers.
             </Text>
+          </Stack>
+          <Text size="sm" fw={600} mt="md" mb={6}>
+            Market Trade Buyer/Seller Filter
+          </Text>
+          <Stack gap="xs">
+            <TextInput
+              label="Filter by Buyer"
+              placeholder="e.g. 14"
+              value={marketTradeBuyerFilter}
+              onChange={event => setMarketTradeBuyerFilter(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Filter by Seller"
+              placeholder="e.g. 38"
+              value={marketTradeSellerFilter}
+              onChange={event => setMarketTradeSellerFilter(event.currentTarget.value)}
+            />
           </Stack>
         </VisualizerCard>
       </Grid.Col>

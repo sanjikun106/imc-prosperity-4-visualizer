@@ -101,6 +101,8 @@ export function VisualizerPage(): ReactNode {
   const sortedProducts = [...products].sort((a, b) => a.localeCompare(b));
   const [selectedProducts, setSelectedProducts] = useState<string[]>(sortedProducts);
   const [showVolumeCharts, setShowVolumeCharts] = useState(true);
+  const [marketTradeBuyerFilter, setMarketTradeBuyerFilter] = useState('');
+  const [marketTradeSellerFilter, setMarketTradeSellerFilter] = useState('');
 
   useEffect(() => {
     setSelectedProducts(sortedProducts);
@@ -180,7 +182,13 @@ export function VisualizerPage(): ReactNode {
 
     productSections.push(
       <Grid.Col key={`${symbol} - product price`} span={12}>
-        <ProductPriceChart symbol={symbol} />
+        <ProductPriceChart
+          symbol={symbol}
+          marketTradeBuyerFilter={marketTradeBuyerFilter}
+          setMarketTradeBuyerFilter={setMarketTradeBuyerFilter}
+          marketTradeSellerFilter={marketTradeSellerFilter}
+          setMarketTradeSellerFilter={setMarketTradeSellerFilter}
+        />
       </Grid.Col>,
     );
 
@@ -274,7 +282,11 @@ export function VisualizerPage(): ReactNode {
         )}
         {productSections}
         <Grid.Col span={12}>
-          <TimestampsCard symbols={selectedProducts} />
+          <TimestampsCard
+            symbols={selectedProducts}
+            marketTradeBuyerFilter={marketTradeBuyerFilter}
+            marketTradeSellerFilter={marketTradeSellerFilter}
+          />
         </Grid.Col>
         {algorithm.summary && (
           <Grid.Col span={12}>
