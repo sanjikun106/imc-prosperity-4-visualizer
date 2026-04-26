@@ -11,22 +11,21 @@ export interface TradesTableProps {
   sellerFilter?: string;
 }
 
-function extractBuyerId(buyer: string): string {
-  const match = buyer.match(/\d+$/);
-  return match ? match[0] : '';
-}
-
-function extractSellerId(seller: string): string {
-  const match = seller.match(/\d+$/);
-  return match ? match[0] : '';
+function extractId(partyString: string): string {
+  // Extract any numeric digits from the string
+  const matches = partyString.match(/\d+/g);
+  // Join all digits (e.g., "Mark 14 Smith" -> "14", "Mark 1 4" -> "14")
+  return matches ? matches.join('') : '';
 }
 
 function matchesFilter(value: string, filter: string): boolean {
-  if (filter.trim().length === 0) {
+  if (!filter || filter.trim().length === 0) {
     return true;
   }
 
-  return value.includes(filter);
+  const filterTrimmed = filter.trim();
+  // Match if the extracted value contains the filter string
+  return value.includes(filterTrimmed);
 }
 
 export function TradesTable({ trades, buyerFilter = '', sellerFilter = '' }: TradesTableProps): ReactNode {
@@ -35,8 +34,8 @@ export function TradesTable({ trades, buyerFilter = '', sellerFilter = '' }: Tra
     for (let i = 0; i < trades[symbol].length; i++) {
       const trade = trades[symbol][i];
 
-      const buyerId = extractBuyerId(trade.buyer);
-      const sellerId = extractSellerId(trade.seller);
+      const buyerId = extractId(trade.buyer);
+      const sellerId = extractId(trade.seller);
 
       if (!matchesFilter(buyerId, buyerFilter) || !matchesFilter(sellerId, sellerFilter)) {
         continue;
