@@ -53,6 +53,93 @@ interface Prosperity4LogFile {
   tradeHistory?: Prosperity4TradeHistoryEntry[];
 }
 
+function buildOrderDepthFromActivityRow(row: ActivityLogRow): OrderDepth {
+  const buyOrders: Record<number, number> = {};
+  const sellOrders: Record<number, number> = {};
+
+  for (let i = 0; i < row.bidPrices.length; i++) {
+    const price = row.bidPrices[i];
+    const volume = row.bidVolumes[i];
+    if (price !== undefined && volume !== undefined) {
+      buyOrders[price] = Math.abs(volume);
+    }
+  }
+
+  for (let i = 0; i < row.askPrices.length; i++) {
+    const price = row.askPrices[i];
+    const volume = row.askVolumes[i];
+    if (price !== undefined && volume !== undefined) {
+      sellOrders[price] = -Math.abs(volume);
+    }
+  }
+
+  return {
+    buyOrders,
+    sellOrders,
+  };
+}
+
+function buildDataRowsFromActivityLogsAndTradeHistory(
+  activityLogs: ActivityLogRow[],
+  tradeHistory: Trade[],
+): AlgorithmDataRow[] {
+  const rowsByTimestamp = new Map<number, AlgorithmDataRow>();
+
+  for (const activityRow of activityLogs) {
+    const symbol = activityRow.product;
+    const timestamp = activityRow.timestamp;
+
+    if (!rowsByTimestamp.has(timestamp)) {
+      rowsByTimestamp.set(timestamp, {
+        state: {
+          timestamp,
+          traderData: '',
+          listings: {},
+          orderDepths: {},
+          ownTrades: {},
+          marketTrades: {},
+          position: {},
+          observations: {
+            plainValueObservations: {},
+            conversionObservations: {},
+          },
+        },
+        orders: {},
+        conversions: 0,
+        traderData: '',
+        algorithmLogs: '',
+        sandboxLogs: '',
+      });
+    }
+
+    const row = rowsByTimestamp.get(timestamp)!;
+
+    row.state.listings[symbol] = {
+      symbol,
+      product: symbol,
+      denomination: 'SEASHELLS',
+    };
+    row.state.orderDepths[symbol] = buildOrderDepthFromActivityRow(activityRow);
+  }
+
+  for (const trade of tradeHistory) {
+    const row = rowsByTimestamp.get(trade.timestamp);
+    if (row === undefined) {
+      continue;
+    }
+
+    const target =
+      trade.buyer === 'SUBMISSION' || trade.seller === 'SUBMISSION' ? row.state.ownTrades : row.state.marketTrades;
+    if (target[trade.symbol] === undefined) {
+      target[trade.symbol] = [];
+    }
+
+    target[trade.symbol].push(trade);
+  }
+
+  return [...rowsByTimestamp.values()].sort((a, b) => a.state.timestamp - b.state.timestamp);
+}
+
 function getColumnValues(columns: string[], indices: number[]): number[] {
   const values: number[] = [];
 
@@ -376,7 +463,15 @@ function getAlgorithmFromProsperity4LogFile(
     );
   }
 
-  const data = getAlgorithmDataFromProsperity4Logs(logFile.logs);
+  const tradeHistory = parseTradeHistory(logFile.tradeHistory);
+  let data = getAlgorithmDataFromProsperity4Logs(logFile.logs);
+
+  const hasOnlyEmptyLambdaLogs = logFile.logs.every(
+    entry => typeof entry.lambdaLog !== 'string' || entry.lambdaLog.trim() === '',
+  );
+  if (data.length === 0 && activityLogs.length > 0 && hasOnlyEmptyLambdaLogs) {
+    data = buildDataRowsFromActivityLogsAndTradeHistory(activityLogs, tradeHistory);
+  }
 
   if (activityLogs.length === 0 || data.length === 0) {
     throw new AlgorithmParseError(
@@ -390,7 +485,7 @@ function getAlgorithmFromProsperity4LogFile(
     sourceLogFileName,
     activityLogs,
     data,
-    marketTradeHistory: parseTradeHistory(logFile.tradeHistory),
+    marketTradeHistory: tradeHistory,
   };
 }
 
