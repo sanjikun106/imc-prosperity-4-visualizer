@@ -88,6 +88,8 @@ interface MarkerEntry {
   filterId: MarkerSeriesId;
   marker: SeriesMarker<ChartTime>;
   quantity: number;
+  buyer?: string;
+  seller?: string;
 }
 
 interface TriangleMarkerEntry {
@@ -204,6 +206,30 @@ function matchesMarketTradeVolumeFilter(quantity: number, filter: MarketTradeVol
   }
 
   return true;
+}
+
+function extractPartyId(party: string | undefined): string {
+  if (!party) {
+    return '';
+  }
+  const matches = party.match(/\d+/g);
+  return matches ? matches.join('') : '';
+}
+
+function matchesPartyFilter(party: string | undefined, filter: string): boolean {
+  const trimmed = filter.trim();
+  if (trimmed.length === 0) {
+    return true;
+  }
+  return extractPartyId(party).includes(trimmed);
+}
+
+function matchesMarketTradeBuyerSellerFilter(
+  marker: { buyer?: string; seller?: string },
+  buyerFilter: string,
+  sellerFilter: string,
+): boolean {
+  return matchesPartyFilter(marker.buyer, buyerFilter) && matchesPartyFilter(marker.seller, sellerFilter);
 }
 
 function isMarketTradeSeries(id: MarkerSeriesId): id is 'market-trade' {
@@ -503,6 +529,8 @@ function createTooltipLines(
   visibleSeries: Set<SeriesId>,
   markerEntries: MarkerTooltipEntry[],
   marketTradeVolumeFilter: MarketTradeVolumeFilter,
+  marketTradeBuyerFilter: string,
+  marketTradeSellerFilter: string,
 ): TooltipLine[] {
   const lines: TooltipLine[] = [];
 
@@ -537,11 +565,13 @@ function createTooltipLines(
       continue;
     }
 
-    if (
-      isMarketTradeSeries(entry.filterId) &&
-      !matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)
-    ) {
-      continue;
+    if (isMarketTradeSeries(entry.filterId)) {
+      if (!matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)) {
+        continue;
+      }
+      if (!matchesMarketTradeBuyerSellerFilter(entry, marketTradeBuyerFilter, marketTradeSellerFilter)) {
+        continue;
+      }
     }
 
     const isMarketTrade = isMarketTradeSeries(entry.filterId);
@@ -604,6 +634,8 @@ export function ProductPriceChart({
 
   const visibleSeriesIdsRef = useRef<Set<SeriesId>>(new Set(DEFAULT_VISIBLE_SERIES as SeriesId[]));
   const marketTradeVolumeFilterRef = useRef<MarketTradeVolumeFilter>({});
+  const marketTradeBuyerFilterRef = useRef<string>('');
+  const marketTradeSellerFilterRef = useRef<string>('');
   const rangeSyncingRef = useRef(false);
   const crosshairSyncingRef = useRef(false);
   const activeTooltipTimestamp = tooltip?.timestamp ?? null;
@@ -619,6 +651,14 @@ export function ProductPriceChart({
   useEffect(() => {
     marketTradeVolumeFilterRef.current = marketTradeVolumeFilter;
   }, [marketTradeVolumeFilter]);
+
+  useEffect(() => {
+    marketTradeBuyerFilterRef.current = marketTradeBuyerFilter;
+  }, [marketTradeBuyerFilter]);
+
+  useEffect(() => {
+    marketTradeSellerFilterRef.current = marketTradeSellerFilter;
+  }, [marketTradeSellerFilter]);
 
   const derivedData = useMemo<DerivedChartData>(() => {
     const activityRows = algorithm.activityLogs
@@ -783,6 +823,8 @@ export function ProductPriceChart({
           size: getMarkerSize(trade.quantity),
         },
         quantity: trade.quantity,
+        buyer: trade.buyer,
+        seller: trade.seller,
       });
 
       const tooltipEntries = markerTooltipByTimestamp.get(trade.timestamp) || [];
@@ -873,6 +915,8 @@ export function ProductPriceChart({
         visibleSeriesIdsRef.current,
         derivedData.markerTooltipByTimestamp.get(activeTooltipTimestamp) || [],
         marketTradeVolumeFilter,
+        marketTradeBuyerFilter,
+        marketTradeSellerFilter,
       ),
     });
   }, [
@@ -881,6 +925,8 @@ export function ProductPriceChart({
     derivedData.markerTooltipByTimestamp,
     derivedData.rowByTimestamp,
     marketTradeVolumeFilter,
+    marketTradeBuyerFilter,
+    marketTradeSellerFilter,
     shouldPlotMidPrice,
     visibleSeriesIds,
   ]);
@@ -1087,6 +1133,8 @@ export function ProductPriceChart({
         visibleSeriesIdsRef.current,
         derivedData.markerTooltipByTimestamp.get(timestamp) || [],
         marketTradeVolumeFilterRef.current,
+        marketTradeBuyerFilterRef.current,
+        marketTradeSellerFilterRef.current,
       );
 
       setTooltip({
@@ -1277,14 +1325,25 @@ export function ProductPriceChart({
             return true;
           }
 
-          return matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter);
+          if (!matchesMarketTradeVolumeFilter(entry.quantity, marketTradeVolumeFilter)) {
+            return false;
+          }
+
+          return matchesMarketTradeBuyerSellerFilter(entry, marketTradeBuyerFilter, marketTradeSellerFilter);
         })
         .map(entry => entry.marker),
     );
     triangleMarkerPrimitiveRef.current?.setMarkers(
       derivedData.triangleMarkers.filter(entry => visibleIds.has(entry.filterId)),
     );
-  }, [derivedData, marketTradeVolumeFilter, shouldPlotMidPrice, visibleSeriesIds]);
+  }, [
+    derivedData,
+    marketTradeVolumeFilter,
+    marketTradeBuyerFilter,
+    marketTradeSellerFilter,
+    shouldPlotMidPrice,
+    visibleSeriesIds,
+  ]);
 
   return (
     <Grid align="flex-start">
