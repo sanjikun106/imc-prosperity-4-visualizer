@@ -105,6 +105,8 @@ interface MarkerTooltipEntry {
   color: string;
   price: number;
   quantity: number;
+  buyer?: string;
+  seller?: string;
 }
 
 interface TooltipLine {
@@ -542,10 +544,16 @@ function createTooltipLines(
       continue;
     }
 
+    const isMarketTrade = isMarketTradeSeries(entry.filterId);
+    const value =
+      isMarketTrade && entry.buyer && entry.seller
+        ? `${formatValue(entry.price)}, ${formatValue(entry.quantity)} | Buyer: ${entry.buyer}, Seller: ${entry.seller}`
+        : `${formatValue(entry.price)}, ${formatValue(entry.quantity)}`;
+
     lines.push({
       key: `${entry.filterId}-${entry.price}-${entry.quantity}`,
       label: entry.label,
-      value: `${formatValue(entry.price)}, ${formatValue(entry.quantity)}`,
+      value,
       color: entry.color,
     });
   }
@@ -784,6 +792,8 @@ export function ProductPriceChart({
         color: SERIES_COLORS[tradeSeriesId],
         price: trade.price,
         quantity: trade.quantity,
+        buyer: trade.buyer,
+        seller: trade.seller,
       });
       markerTooltipByTimestamp.set(trade.timestamp, tooltipEntries);
     }
